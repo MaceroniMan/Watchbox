@@ -1,11 +1,12 @@
 from logging.config import dictConfig
 from flask import request, make_response
+from datetime import datetime
 import threading
 import atexit
 import urllib.parse
 import uuid, time, sys
 
-minijs = """async function __watchboxpromise__(o,n){return new Promise((t,e)=>{$.post("/watchbox.get.wb",{group:o},function(e){"wb00"==e||("wb11"==e?console.error("[watchbox] not in group "+o):n(e)),t()})})}async function __watchboxdaemon__(o,n,t){for(;;)await watchbox._sleep(100),await __watchboxpromise__(o,n)}const watchbox={_sleep:async function(o){return new Promise(n=>setTimeout(n,o))},join:function(o,n,t=function(){},e=null){return $.post("/watchbox.join.wb",{group:o},function(c){console.log("[watchbox] join response: "+c),t(),__watchboxdaemon__(o,n,t,e)}),!0},publish:function(o,n){$.post("/watchbox.brdcst.wb",{group:n,text:encodeURIComponent(o)},function(o){console.log("[watchbox] message response: "+o)})},send:function(o){$.post("/watchbox.server.wb",{text:encodeURIComponent(o)},function(o){console.log("[watchbox] message response: "+o)})}};"""
+minijs = """var __watchboxvars__={connected:!0,joingroups:[],inited:!1};async function __watchboxdeamon__(o,n,t){let c=!0,e=o;for(;;)for(item in await watchbox._sleep(e),__watchboxvars__.joingroups){let i=__watchboxvars__.joingroups[item][0],a=__watchboxvars__.joingroups[item][1];new Promise(function(a,s){$.post("/watchbox.get.wb",{group:i},function(n){c||(c=!0,e=o,console.log("[watchbox] connected"),t()),a("wb00"==n?"":"wb11"==n?"join":n)}).fail(function(){c&&(e=1e3,c=!1,console.log("[watchbox] disconnected"),n())})}).then(async function(o){"join"==o?await watchbox._join(i):""==o||a(o)},function(o){})}}const watchbox={_sleep:async function(o){return new Promise(n=>setTimeout(n,o))},init:function(o=100,n=function(){},t=function(){}){__watchboxdeamon__(o,n,t),__watchboxvars__.inited=!0},_join:async function(o){$.post("/watchbox.join.wb",{group:o},function(o){console.log("[watchbox] join response: "+o)})},join:function(o,n,t=function(){}){__watchboxvars__.inited?(__watchboxvars__.joingroups.push([o,n]),t()):console.error("[watchbox] watchbox not inited, use 'watchbox.init'")},publish:function(o,n){__watchboxvars__.inited?$.post("/watchbox.brdcst.wb",{group:n,text:encodeURIComponent(o)},function(o){console.log("[watchbox] message response: "+o)}):console.error("[watchbox] watchbox not inited, use 'watchbox.init'")},send:function(o){__watchboxvars__.inited?$.post("/watchbox.server.wb",{text:encodeURIComponent(o)},function(o){console.log("[watchbox] message response: "+o)}):console.error("[watchbox] watchbox not inited, use 'watchbox.init'")}};"""
 
 class server(object):
   def __init__(self, app):
@@ -35,7 +36,8 @@ class server(object):
   
   def __log(self, message, level):
     if self.logginglevel >= level:
-      print("watchbox : " + message)
+      now = datetime.now()
+      print("watchbox : " + now.strftime("%H:%M:%S") + " : " + message)
     else:
       pass
   
