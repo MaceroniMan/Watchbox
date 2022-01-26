@@ -4,6 +4,12 @@ A mqtt-like program that runs locally. It containes many features to pritoritize
 # Theory
 Watchbox is a program that allows many clients to send messages to eachother like mqtt. The server also handles disconnects and controles for all kinds of properties. The client's features contain the ability to auto reconnect as well as a callback for when disconnects occur and when re-connects occur.
 
+# Limits:
+- The client and the server can only send regular string to eachother, meaning that if other types wanted to be sent they would have to be converted back to the starting type on the other end. The feature to automatically determine the type will come.
+- There is no encryption as of yet to hide the messages that are sent, there many be in the future but even so it would not be the best encryption and do it will be unwise to rely on the in-built encryption itself.
+
+-----------
+
 # Watchbox Server
 To start a watchbox server on your flask app, use `watchbox.server(<app>)`. This will start a watchbox server running on your flask server.
 
@@ -13,18 +19,18 @@ When running flask, instead of using `app.run` use `watchbox.run(<watchbox app>)
 ### Example
 
 ```python
-from flask import Flask # Need to get the flask module
-import watchbox # Need to get the watchbox module
+from flask import Flask # need to get the flask module
+import watchbox # need to get the watchbox module
 
-app = Flask(__main__) # Starting a flask server
+app = Flask(__main__) # starting a flask server
 
-watcher = watchbox.server(app) # Adding a watchbox server to the flask server
+watcher = watchbox.server(app) # adding a watchbox server to the flask server
 
 @app.route("/")
 def index():
   return "Watchbox test"
 
-watchbox.run(watcher, host="127.0.0.1", port=1234) # Running the flask server with extra logging to reduce garbage
+watchbox.run(watcher, host="127.0.0.1", port=1234) # running the flask server with extra logging to reduce garbage
 ```
 
 ## Sending messages
@@ -41,7 +47,7 @@ watcher = watchbox.server(app)
 
 @app.route("/")
 def index():
-  watcher.publish("person joined", "foo") # Publishes a message to the "foo" group
+  watcher.publish("person joined", "foo") # publishes a message to the "foo" group
   return "Watchbox test"
 
 
@@ -66,12 +72,12 @@ def index():
 
 @watcher.onMessage()
 def msg(message):
-  print("Message send: " + message.msg) # Print out the message that was sent to the server
-  print("From: " + message.uid) # Print out the uuid of the client that sent the message
+  print("Message send: " + message.msg) # prints out the message that was sent to the server
+  print("From: " + message.uid) # prints out the uuid of the client that sent the message
 
 @watcher.onTimeout()
 def discon(uid):
-  print("Client disconnect: " + uid) # Print out the uuid of the client that disconnected
+  print("Client disconnect: " + uid) # prints out the uuid of the client that disconnected
 
 watchbox.run(watcher, host="127.0.0.1", port=1234)
 ```
@@ -86,3 +92,49 @@ There are some properties that can be changed to reduce RAM usage or reduce CPU 
 - `<watcher>.listlimit` **:** The amount of entries that can be qued up for each client before they start replaceing them.
   - Lower values use less ram but there is more of a possability of 'skipping' or missing messages
   - Defualt is 50, the recommended lowest value is 2 to avoid 'skipping'
+
+# Watchbox JavaScript Client
+To initilize watchbox on a JavaScript client, use `watchbox.init()`, this will start the watchbox background process.
+
+## Receiving Messages
+To receive messages with the JavaScript client, use the function `watchbox.join(<group>, <message callback>)`. This will join the group and will run the callback on every message. There is a block in place that will prevent more than one callback being called at one time, but the client will not wait for the callback to end before it calls the next one.
+
+### Example
+```javascript
+watchbox.init() // sets up the watchbox client
+
+watchbox.join("foo", function(message){
+  console.log("Message reveived: " + message) // this will run every time a message is received
+})
+```
+
+## Sending Messages (Clients)
+To send messages to other clients use `watchbox.publish(<message>, <group>)`, this will send the message to all other members in the group that was defined.
+
+### Example
+```javascript
+watchbox.init()
+
+watchbox.join("foo", function(message){
+  watchbox.publish("bar", "im here!") // it does not have join a group to publish to one
+})
+```
+
+## Sending Messages (Server)
+To send messages directly to the server use `watchbox.send(<message>)`, this will send the message directly to the server for it to parse using its `onMessage` decorator.
+
+### Example
+```javascript
+watchbox.init()
+
+watchbox.send("player 1 joined")
+```
+
+## Extra Arguments
+There are some extra argument that can be set on the client, all of them are listed below:
+- `watchbox.init()` contains 3 arguments
+  - `dtime` **:** this is the time between loops of the background process in milliseconds, the lower the number the more CPU it uses, but it will also decrease the time in between messages (defualt is 100)
+  - `disconnect` **:** this is the function that is called when watchbox loses the connection with the server (defualt is blank function)
+  - `reconnect` **:** this is the function that is called when watchbox re-gains a connection with the server (defualt is blank function)
+- `watchbox.join()` contains 1 argument
+  - `onjoin` **:** this is called when the join function finishes (defualt is blank function)
