@@ -123,7 +123,7 @@ To send messages directly to the server use `watchbox.send(<message>)`, this wil
 ```javascript
 watchbox.init()
 
-watchbox.send("player 1 joined")
+watchbox.send("player 1 joined") // this will send a message directly to the server
 ```
 
 ## Extra Arguments
