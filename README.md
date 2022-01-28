@@ -4,10 +4,6 @@ A mqtt-like program that runs locally. It containes many features to pritoritize
 # Theory
 Watchbox is a program that allows many clients to send messages to eachother like mqtt. The server also handles disconnects and controles for all kinds of properties. The client's features contain the ability to auto reconnect as well as a callback for when disconnects occur and when re-connects occur.
 
-# Limits:
-- The client and the server can only send regular string to eachother, meaning that if other types wanted to be sent they would have to be converted back to the starting type on the other end. The feature to automatically determine the type will come.
-- There is no encryption as of yet to hide the messages that are sent, there many be in the future but even so it would not be the best encryption and do it will be unwise to rely on the in-built encryption itself.
-
 -----------
 
 # Watchbox Server
