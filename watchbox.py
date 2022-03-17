@@ -2,7 +2,6 @@ from logging.config import dictConfig
 from flask import request, make_response
 from datetime import datetime
 import threading
-import atexit
 import urllib.parse
 import uuid, time, sys
 
@@ -15,6 +14,7 @@ class server(object):
 
     self.__servermsg = None
     self.__servertimeout = None
+    self.__serverjoin = None
 
     self.logginglevel = 3
     self.timeout = 10
@@ -52,7 +52,6 @@ class server(object):
     for item in self.__messages:
       try:
         if len(self.__messages[item][group]) >= self.listlimit:
-          #self.__messages[item][group].pop(0)
           pass
         else:
           self.__messages[item][group].append(message)
@@ -91,7 +90,10 @@ class server(object):
         self.__clients[uid] = {"tm":time.time()}
         self.__messages[uid] = {grup:[]}
       else:
+        uid = cokie
         self.__messages[cokie][grup] = []
+      if self.__serverjoin != None: # alert the server of a join
+        self.__serverjoin(uid)
       return res
     elif mtype == "brdcst":
       grup = rqst.form['group']
@@ -155,6 +157,13 @@ class server(object):
         selfs.__log("message sent to server", 2)
         function({"msg": msg, "client": uid})
       self.__servermsg = magic
+    return decorator
+
+  def onJoin(self):
+    def decorator(function):
+      def magic(uid):
+        function(uid)
+      self.__serverjoin = magic
     return decorator
 
   def onTimeout(self):
