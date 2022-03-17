@@ -1,5 +1,10 @@
 # Watchbox
-A mqtt-like program that runs locally. It containes many features to pritoritize memory over speed or vice a versa.
+A mqtt-like program that runs locally. It has a flask-python server and a javascript client. It containes many features to pritoritize memory over speed or vice a versa.
+
+# Installation
+The installation process is very easy, make sure the `watchbox.py` file is in the same directory as the server, then `import watchbox` will finish it off.
+
+Using watchbox on the javascript client is a bit trickier, the client script is stored with the `.py` file, so all that it needed is a simple `<script src="/watchbox.file.wb"></script>`
 
 # Theory
 Watchbox is a program that allows many clients to send messages to eachother like mqtt. The server also handles disconnects and controles for all kinds of properties. The client's features contain the ability to auto reconnect as well as a callback for when disconnects occur and when re-connects occur.
@@ -51,7 +56,9 @@ watchbox.run(watcher, host="127.0.0.1", port=1234)
 ```
 
 ## Server callbacks
-There are 2 callbacks that the flask server can utilize. One is to get oncomming messages `@<watcher>.onMessage()` and the other to handle when a client disconnects `@<watcher>.onTimeout()`.
+There are 3 callbacks that the flask server can utilize. One is to get oncomming messages `@<watcher>.onMessage()` another to handle when a client disconnects `@<watcher>.onTimeout()` and the last to handle when a client reconnects `@<watcher>.onJoin()`.
+
+*NOTE: These callbacks do not actually interfere with the watchbox core, the core stays the same. These are async functions called when something happens.*
 
 ### Example
 ```python
@@ -74,6 +81,10 @@ def msg(message):
 @watcher.onTimeout()
 def discon(uid):
   print("Client disconnect: " + uid) # prints out the uuid of the client that disconnected
+
+@watcher.onJoin()
+def connect(uid):
+  print("Client connect: " + uid) # prints out the uuid of the client that connected
 
 watchbox.run(watcher, host="127.0.0.1", port=1234)
 ```
@@ -128,9 +139,9 @@ watchbox.send("player 1 joined") // this will send a message directly to the ser
 
 ## Extra Arguments
 There are some extra argument that can be set on the client, all of them are listed below:
-- `watchbox.init()` contains 3 arguments
+- `watchbox.init(<dtime>, <disconnect>, <reconnect>)` contains 3 arguments
   - `dtime` **:** this is the time between loops of the background process in milliseconds, the lower the number the more CPU it uses, but it will also decrease the time in between messages (defualt is 100)
-  - `disconnect` **:** this is the function that is called when watchbox loses the connection with the server (defualt is blank function)
-  - `reconnect` **:** this is the function that is called when watchbox re-gains a connection with the server (defualt is blank function)
-- `watchbox.join()` contains 1 argument
+  - `disconnect` **:** this is the function that is called when the watchbox client loses the connection with the server (defualt is blank function)
+  - `reconnect` **:** this is the function that is called when the watchbox client re-gains a connection with the server (defualt is blank function)
+- `watchbox.join(<onjoin>)` contains 1 argument
   - `onjoin` **:** this is called when the join function finishes (defualt is blank function)
