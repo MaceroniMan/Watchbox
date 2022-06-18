@@ -23,7 +23,7 @@ When running flask, instead of using `app.run` use `watchbox.run(<watchbox app>)
 from flask import Flask # need to get the flask module
 import watchbox # need to get the watchbox module
 
-app = Flask(__main__) # starting a flask server
+app = Flask(__name__) # starting a flask server
 
 watcher = watchbox.server(app) # adding a watchbox server to the flask server
 
@@ -42,7 +42,7 @@ To send messages to a path, use `<watcher>.publish(<message>, <group>)`. This wi
 from flask import Flask
 import watchbox
 
-app = Flask(__main__)
+app = Flask(__name__)
 
 watcher = watchbox.server(app)
 
@@ -65,7 +65,7 @@ There are 3 callbacks that the flask server can utilize. One is to get oncomming
 from flask import Flask
 import watchbox
 
-app = Flask(__main__)
+app = Flask(__name__)
 
 watcher = watchbox.server(app)
 
