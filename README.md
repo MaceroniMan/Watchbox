@@ -123,7 +123,7 @@ To send messages to other clients use `watchbox.publish(<message>, <group>)`, th
 watchbox.init()
 
 watchbox.join("foo", function(message){
-  watchbox.publish("bar", "im here!") // it does not have join a group to publish to one
+  watchbox.publish("im here!", "bar") // it does not have join a group to publish to one
 })
 ```
 
