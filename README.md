@@ -140,7 +140,7 @@ watchbox.send("player 1 joined") // this will send a message directly to the ser
 ## Extra Arguments
 There are some extra argument that can be set on the client, all of them are listed below:
 - `watchbox.init(<dtime>, <disconnect>, <reconnect>)` contains 3 arguments
-  - `dtime` **:** this is the time between loops of the background process in milliseconds, the lower the number the more CPU it uses, but it will also decrease the time in between messages (defualt is 100)
+  - `dtime` **:** this is the time between loops of the background process in milliseconds, the lower the number the higher the preformance (defualt is 100)
   - `disconnect` **:** this is the function that is called when the watchbox client loses the connection with the server (defualt is blank function)
   - `reconnect` **:** this is the function that is called when the watchbox client re-gains a connection with the server (defualt is blank function)
 - `watchbox.join(<onjoin>)` contains 1 argument
