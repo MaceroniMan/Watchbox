@@ -103,7 +103,7 @@ There are some properties that can be changed to reduce RAM usage or reduce CPU 
   - `0` **:** Disables logging
 - `<watcher>.timeout` **:** The time before a client is disconnected in seconds, defualt is 10
 - `<watcher>.listlimit` **:** The amount of entries that can be qued up for each client before they start replaceing them.
-  - Lower values use less ram but there is more of a possability of 'skipping' or missing messages
+  - Lower values may use less memory but there is a higher possibility of 'skipping' or missing messages
   - Defualt is 50, the recommended lowest value is 2 to avoid 'skipping'
 
 # Watchbox JavaScript Client
