@@ -58,6 +58,11 @@ watchbox.run(watcher, host="127.0.0.1", port=1234)
 ## Server callbacks
 There are 3 callbacks that the flask server can utilize. One is to get oncomming messages `@<watcher>.onMessage()` another to handle when a client disconnects `@<watcher>.onTimeout()` and the last to handle when a client reconnects `@<watcher>.onJoin()`.
 
+The `@<watcher>.onMessage()` callback passes a `_message_object`, this object has three methods:
+ - `.msg` is the text that the client sent to the server
+ - `.uid` is the unique identifier of the client that sent the message
+ - `.reply(<message>, <force=False>)` this will add the `<message>` JSON right to the clients que, if `<force>` is `true` this the function will ignore the `listlimit` function and forcefully add the message to the que
+
 *NOTE: These callbacks do not actually interfere with the watchbox core, the core stays the same. These are async functions called when something happens.*
 
 ### Example
@@ -77,6 +82,7 @@ def index():
 def msg(message):
   print("Message send: " + message.msg) # prints out the message that was sent to the server
   print("From: " + message.uid) # prints out the uuid of the client that sent the message
+  message.reply("Sending a message back") # this adds a message directly to the clients que
 
 @watcher.onTimeout()
 def discon(uid):
