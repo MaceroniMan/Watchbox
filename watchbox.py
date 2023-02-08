@@ -1,11 +1,13 @@
 from logging.config import dictConfig
-from flask import request, make_response
+from flask import request, make_response, send_file
 from datetime import datetime
 import threading
-import urllib.parse
+import urllib.request
 import uuid, time, sys, json
+import copy
 
-minijs = """var __watchboxvars__={joingroups:[],inited:!1,logginglevel:3,registered:!1,dtime:0,serverlogs:!0,reconnect:function(){},disconnect:function(){}};async function __watchboxdeamon__(){for(;;)if(await watchbox._sleep_(__watchboxvars__.dtime),__watchboxvars__.registered)for(item in __watchboxvars__.joingroups){let o=__watchboxvars__.joingroups[item][0],_=__watchboxvars__.joingroups[item][1];new Promise(function(_,t){$.post("/watchbox.get.wb",{group:o},function(o){_("wb00"==o?"":"wb11"==o?"join":"wb41"==o?"register":JSON.parse(o))}).fail(function(){__watchboxvars__.registered&&(__watchboxvars__.registered=!1,watchbox._log_("disconnected",2),__watchboxvars__.disconnect())})}).then(async function(t){"join"==t?await watchbox._join_(o):""==t||("register"==t?(__watchboxvars__.registered=!1,watchbox._log_("disconnected",2),__watchboxvars__.disconnect()):_(t))},function(o){})}else null!=__watchboxvars__.registered&&watchbox._register_()}const watchbox={_sleep_:async function(o){return new Promise(_=>setTimeout(_,o))},_log_:function(o,_){_<=__watchboxvars__.logginglevel&&(1==_?console.error("[watchbox] "+o):console.log("[watchbox] [level "+_+"] "+o),__watchboxvars__.serverlogs&&watchbox.send(["_log_","internals",o],!0))},_register_:async function(){for(__watchboxvars__.registered=null;!__watchboxvars__.registered;){await watchbox._sleep_(1e3);var o=new Promise(function(o,_){$.post("/watchbox.register.wb",{},function(_){"wb42"==_?o(!0):"wb41"==_&&o(!1)}).fail(function(){o(!1)})});await o.then(function(o){o?(watchbox._log_("connected",2),__watchboxvars__.reconnect(),__watchboxvars__.registered=!0):__watchboxvars__.registered=null},function(o){})}},_join_:async function(o){$.post("/watchbox.join.wb",{group:o},function(_){watchbox._log_("join response: "+_,2),watchbox._log_("from group: "+o,3)})},init:function(o=100,_=3,t=function(){},e=function(){}){__watchboxdeamon__(),__watchboxvars__.dtime=o,__watchboxvars__.disconnect=t,__watchboxvars__.reconnect=e,__watchboxvars__.logginglevel=_,__watchboxvars__.inited=!0},join:function(o,_,t=function(){}){__watchboxvars__.inited?(__watchboxvars__.joingroups.push([o,_]),t()):watchbox._log_("watchbox not inited, use 'watchbox.init'",1)},publish:function(o,_){__watchboxvars__.inited?"server"==_?watchbox._log_("cannot send messages to locked group",1):$.post("/watchbox.brdcst.wb",{group:_,text:encodeURIComponent(JSON.stringify(o))},function(o){watchbox._log_("message response: "+o,3)}):watchbox._log_("watchbox not inited, use 'watchbox.init'",1)},send:function(o,_){__watchboxvars__.inited?$.post("/watchbox.server.wb",{text:encodeURIComponent(JSON.stringify(o))},function(o){_?"wb24"==o&&(__watchboxvars__.serverlogs=!1):watchbox._log_("message response: "+o,3)}):watchbox._log_("watchbox not inited, use 'watchbox.init'",1)}};"""
+wburl = 'https://raw.githubusercontent.com/MaceroniMan/Watchbox/main/watchbox.js'
+jqueryurl = 'https://code.jquery.com/jquery-3.6.3.min.js'
 
 class server(object):
   def __init__(self, app):
@@ -17,22 +19,35 @@ class server(object):
     self.__serverjoin = None
     self.__serverregister = None
 
-    self.logginglevel = 3
+    self.logginglevel = 2
+
     self.timeout = 10
     self.listlimit = 50
     self.clientlogging = True
+    self.ttl = 50
 
     self._app = app
 
     print(" * Starting watchbox client")
-    
+
+    # add support for included jquery here
+
+    watchbox_javascript = ""
+
+    with open("watchbox.js", "r") as file:
+      watchbox_javascript = file.read()
+
     @app.route("/watchbox.<string:mtype>.wb", methods=["GET", "POST"])
     def _watchbox_proc(mtype):
       if mtype == "file":
-        return minijs
-      return self.__process(request, mtype)
+        return watchbox_javascript
+      else:
+        return self.__process(request, mtype)
 
     print(" * Starting timeout thread")
+
+    self.__uthreadstop = False
+
     self.__uthread = threading.Thread(target=self.__userthread)
     self.__uthread.start()
   
@@ -56,24 +71,39 @@ class server(object):
       return False
 
   def __publish(self, message, group):
-    for item in self.__messages:
-      try:
-        if len(self.__messages[item][group]) >= self.listlimit:
-          pass
+    for client in self.__messages:
+      if group in self.__messages[client]:
+        if len(self.__messages[client][group]) >= self.listlimit:
+          pass # if there are too many messages in the que
         else:
-          self.__messages[item][group].append(message)
-      except:
-        pass
+          self.__messages[client][group].append([message, self.ttl*2])
 
   def __userthread(self):
     while True:
-      copy = self.__clients.copy()
-      for uid in copy:
+      if self.__uthreadstop:
+        break
+      
+      # disconnect any client
+      cpy = copy.deepcopy(self.__clients)
+      for uid in cpy:
         if time.time()-self.__clients[uid]["tm"] > self.timeout:
           self.__remove(uid)
           self.__log("client timed out", 2)
           if self.__servertimeout != None:
             self.__servertimeout(uid)
+      
+      # throw away any old messages
+      cpy = copy.deepcopy(self.__messages)
+      for client_index in cpy:
+        client = cpy[client_index]
+        for group_index in client:
+          group = client[group_index]
+          for message_index in range(len(group)):
+            message = group[message_index]
+            if message[1] == 0:
+              del self.__messages[client_index][group_index][message_index]
+            else:
+              self.__messages[client_index][group_index][message_index][1] -= 1
       time.sleep(.5)
 
   def __remove(self, uid):
@@ -84,30 +114,34 @@ class server(object):
       pass
     
   def __process(self, rqst, mtype):
-    cokie = self.__checkcookie(rqst)
+    cookie = self.__checkcookie(rqst)
 
-    if mtype == "register" and cokie == False:
+    if mtype == "register" and cookie == False:
       pass
-    elif cokie == False:
+    elif cookie == False:
       res = make_response("wb41")
       return res
     else:
-      self.__clients[cokie]["tm"] = time.time()
+      self.__clients[cookie]["tm"] = time.time()
 
     if mtype == "join":
-      grup = rqst.form['group']
-      self.__log("client joined group '" + grup + "'", 2)
+      group = rqst.form['group']
+      self.__log("client joined group '" + group + "'", 2)
       res = make_response("wb31")
-      self.__messages[cokie][grup] = []
+
+      # if the client has not joined anything yet
+      if cookie in self.__messages:
+        self.__messages[cookie][group] = []
+
       if self.__serverjoin != None: # alert the server of a join
-        self.__serverjoin(cokie)
+        self.__serverjoin(cookie)
       return res
     elif mtype == "brdcst":
-      grup = rqst.form['group']
-      self.__log("client broadcast message to group '" + grup + "'", 3)
+      group = rqst.form['group']
+      self.__log("client broadcast message to group '" + group + "'", 3)
       text = urllib.parse.unquote(rqst.form['text'])
       res = make_response("wb21")
-      self.__publish(text, grup)
+      self.__publish(text, group)
       return res
     elif mtype == "server":
       item = json.loads(urllib.parse.unquote(rqst.form['text']))
@@ -116,7 +150,7 @@ class server(object):
           if item[0] == "_log_":
             if self.clientlogging:
               res = make_response("wb22")
-              self.__clientlog(item[1], item[2], cokie)
+              self.__clientlog(item[1], item[2], cookie)
               return res
             else:
               res = make_response("wb24")
@@ -132,15 +166,17 @@ class server(object):
           return res
         else:
           res = make_response("wb22")
-          self.__servermsg(self, item, cokie)
+          self.__servermsg(self, item, cookie)
           return res
     elif mtype == "get":
-      grup = rqst.form['group']
-      self.__log("client got messages from server '" + grup + "'", 3)
+      group = rqst.form['group']
+      self.__log("client got messages from server '" + group + "'", 3)
 
-      if grup in self.__messages[cokie]:
-        if len(self.__messages[cokie][grup]) != 0:
-          res = make_response(str(self.__messages[cokie][grup].pop(0)))
+
+      if group in self.__messages[cookie]:
+        if len(self.__messages[cookie][group]) != 0:
+          message = self.__messages[cookie][group].pop(0)
+          res = make_response(str(message[0]))
         else:
           res = make_response("wb00")
       else:
@@ -150,7 +186,7 @@ class server(object):
     elif mtype == "register":
       res = make_response("wb42")
 
-      if cokie == False:
+      if cookie == False:
         uid = uuid.uuid4().hex
         res.set_cookie('__wb.client', uid)
         self.__clients[uid] = {"tm":time.time()}
@@ -162,6 +198,10 @@ class server(object):
         self.__log("client registered to server", 2)
 
       return res
+  
+  def _shutdown(self):
+    self.__uthreadstop = True
+    self.__uthread.join()
 
   def _send(self, jsobject, uid, force=False):
     try:
@@ -213,9 +253,8 @@ class _watchbox_stream(object):
   def write(text):
     if "watchbox.brdcst.wb" in text or "watchbox.server.wb" in text or "watchbox.join.wb" in text or "watchbox.get.wb" in text or "watchbox.file.wb" in text or "watchbox.register.wb" in text:
       pass
-    elif text.startswith(" * Running on http"):
-      indexoftext = text.find("(Press CTRL+C to quit)")
-      sys.stdout.write(text[:indexoftext] + "with WatchBox (Press CTRL+C twice to quit)\n")
+    elif " * Running on " in text:
+      sys.stdout.write(text[:-1] + " with WatchBox\n")
     else:
       sys.stdout.write(text)
   def flush():
@@ -245,7 +284,14 @@ def run(watcher, **kwargs):
       'handlers': ['wsgi']
     }
   })
+
   watcher._app.run(**kwargs)
+
+  # will run when flask shuts down
+  watcher._shutdown()
+
+  # to make the console look nice again
+  print("")
 
 # Return Codes:
 # wb00: Null
